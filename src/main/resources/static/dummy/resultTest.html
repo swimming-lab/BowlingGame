@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Result</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script th:src="@{/js/classScoreBoard.js}"></script>
+</head>
+<body>
+    <header>
+        <h1>Result</h1>
+        <div sec:authorize="isAuthenticated()">
+            <div>안녕하세요, <span sec:authentication="name"></span>님</div>
+            <a href="/account/logout">로그아웃</a>
+        </div>
+    </header>
+    <input type="hidden" id="originalGameId" th:value="${gameFormDto.gameId}"></input>
+    <input type="hidden" id="scoreData" th:value="${gameFormDto.scoreData}"></input>
+    <table id="frame" border="1">
+        <thead>
+            <tr>
+                <th colspan="2">1</th>
+                <th colspan="2">2</th>
+                <th colspan="2">3</th>
+                <th colspan="2">4</th>
+                <th colspan="2">5</th>
+                <th colspan="2">6</th>
+                <th colspan="2">7</th>
+                <th colspan="2">8</th>
+                <th colspan="2">9</th>
+                <th colspan="3">10</th>
+                <th>Total Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td id="frame1phase1">.</td>
+                <td id="frame1phase2">.</td>
+                <td id="frame2phase1">.</td>
+                <td id="frame2phase2">.</td>
+                <td id="frame3phase1">.</td>
+                <td id="frame3phase2">.</td>
+                <td id="frame4phase1">.</td>
+                <td id="frame4phase2">.</td>
+                <td id="frame5phase1">.</td>
+                <td id="frame5phase2">.</td>
+                <td id="frame6phase1">.</td>
+                <td id="frame6phase2">.</td>
+                <td id="frame7phase1">.</td>
+                <td id="frame7phase2">.</td>
+                <td id="frame8phase1">.</td>
+                <td id="frame8phase2">.</td>
+                <td id="frame9phase1">.</td>
+                <td id="frame9phase2">.</td>
+                <td id="frame10phase1">.</td>
+                <td id="frame10phase2">.</td>
+                <td id="frame10phase3">.</td>
+                <td id="totalScore" rowspan="2"></td>
+            </tr>
+            <tr>
+                <td id="frame1score" colspan="2">.</td>
+                <td id="frame2score" colspan="2">.</td>
+                <td id="frame3score" colspan="2">.</td>
+                <td id="frame4score" colspan="2">.</td>
+                <td id="frame5score" colspan="2">.</td>
+                <td id="frame6score" colspan="2">.</td>
+                <td id="frame7score" colspan="2">.</td>
+                <td id="frame8score" colspan="2">.</td>
+                <td id="frame9score" colspan="2">.</td>
+                <td id="frame10score" colspan="3">.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="/game/start">다시 하기</a>
+    <a href="/">돌아가기</a>
+
+    <script>
+        // 게임의 이전 기록 String 데이터를 가져와 배열 형식으로 변환
+        function getBeforeTriedScoreArray() {
+            // DTO로부터 점수 데이터 획득
+            let scoreDataStr = $("#scoreData").val();
+            // String 데이터 숫자 배열로 변환
+            return scoreDataStr.split(',').map(Number);
+        }
+
+        // 기존 점수 데이터를 프레임에 삽입, 점수 계산
+        function recordBeforeTriedScoreValue(scoreBoard, score) {
+            let frame = scoreBoard.curFrameNum;
+            let phase = scoreBoard.curPhaseNum;
+            
+            // ScoreBoard 객체 안 frame 배열에 점수 기록
+            scoreBoard.setTryScore(frame, phase, score);
+            // 점수 값에 따라 화면에 출력할 문자 값 획득 
+            let scoreStateValue = scoreBoard.decideScoreState(frame, phase, score);
+            // 화면에 점수 기록
+            scoreBoard.insertTryScoreIntoFrameView(frame, phase, scoreStateValue);
+            // 프레임/시기 전환 결정값 획득
+            transValue = scoreBoard.decideWhichFrameOrPhase(frame, phase);
+            // 프레임 점수 계산
+            scoreBoard.decideCalcFrameScore(frame, transValue, scoreStateValue);
+            // 프레임/시기 전환
+            scoreBoard.transFrameOrPhase(transValue);
+        }
+
+        // 게임 스코어판 인스턴스 생성
+        let boardInstance = new ScoreBoard();
+        // 게임 점수 배열 데이터 획득
+        let scoreData = getBeforeTriedScoreArray();
+        // 배열 요소 값을 차례로 프레임에 삽입, 화면 기록 및 점수 계산
+        for (let score of scoreData) {
+            recordBeforeTriedScoreValue(boardInstance, score);
+        }
+    </script>
+</body>
+</html>

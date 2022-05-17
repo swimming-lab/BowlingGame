@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html
+        lang="en"
+        class="light-style layout-menu-fixed"
+        dir="ltr"
+        data-theme="theme-default"
+        data-assets-path="/assets/"
+        data-template="vertical-menu-template-free"
+>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
+
+    <title>게임결과</title>
+
+    <meta name="description" content=""/>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/img/favicon/favicon.ico"/>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"/>
+
+    <!-- Icons. Uncomment required icon fonts -->
+    <link rel="stylesheet" href="/assets/vendor/fonts/boxicons.css"/>
+
+    <!-- Core CSS -->
+    <link rel="stylesheet" href="/assets/vendor/css/core.css" class="template-customizer-core-css"/>
+    <link rel="stylesheet" href="/assets/vendor/css/theme-default.css" class="template-customizer-theme-css"/>
+    <link rel="stylesheet" href="/assets/css/demo.css"/>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" th:href="@{/css/bowlfast.css}" />
+    <script th:src="@{/js/classScoreBoard.js}"></script>
+</head>
+
+<body>
+<div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+        <div class="layout-page">
+            <div class="content-wrapper">
+                <div class="container-xxl flex-grow-1 container-p-y">
+                    <div class="row">
+                        <div class="col-lg-8 mb-4 order-0">
+                            <div class="card">
+                                <div class="d-flex align-items-end row">
+                                    <div class="col-sm-7">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-primary">게임 결과 🎳</h5>
+                                            <p class="mb-4">
+                                                게임 결과를 확인하세요!
+                                            </p>
+                                            <a href="/game/start" class="btn btn-outline-primary">다시하기</a>
+                                            <a href="/home" class="btn btn-outline-secondary">돌아가기</a>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-5 text-center text-sm-left">
+                                        <div class="card-body pb-0 px-0 px-md-4">
+                                            <img
+                                                    src="/assets/img/illustrations/man-with-laptop-light.png"
+                                                    height="140"
+                                                    alt="View Badge User"
+                                                    data-app-dark-img="illustrations/man-with-laptop-dark.png"
+                                                    data-app-light-img="illustrations/man-with-laptop-light.png"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 이전 게임 데이터 불러오기 -->
+                    <input type="hidden" id="originalGameId" th:value="${gameFormDto.gameId}"></input>
+                    <input type="hidden" id="scoreData" th:value="${gameFormDto.scoreData}"></input>
+
+                    <div class="row">
+                        <div class="col-lg-8 mb-4 order-0">
+                            <div class="card">
+                                <div class="d-flex align-items-end row">
+                                    <div class="panel panel-default" role="navigation">
+                                        <div id="FrameStart" class="panel-body ui-draggable" value="NOTLAST" style="position: relative;">
+                                            <div id="FrameStart0misc" class="frameinfo"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 프레임 스코어 표 생성 함수
+    function makeFrameSet() {
+        for (let i = 1; i <= 10; i++)
+        {
+            $("#FrameStart").append(`
+                  <div class="frameboxFrameone" id="frame${i}" style="background: rgb(250, 250, 210);">
+                     <div class="framename frameFontSize">${i}</div>
+                     <div class="outerbox frameScoreFontSize">
+                        ${i == 10
+                    ? `<div id="frame${i}phase1" class="ball1box10"></div>
+                                 <div id="frame${i}phase2" class="ball2box10"></div>
+                                 <div id="frame${i}phase3" class="strikebox10"></div>`
+                    : `<div id="frame${i}phase1" class="ball1box text-center"></div>
+                                 <div id="frame${i}phase2" class="strikebox"></div>`
+            }
+                     </div>
+                     <div id="frame${i}score"" class="framescorebox frameScoreFontSize"></div>
+                  </div>`);
+        }
+
+        $("#FrameStart").append(`
+               <div class="framebox" id="totalScoreBox" style="background: rgb(250, 250, 210);">
+                  <div class="framename frameFontSize" style="width:100%; height:50%;">Total Score</div>
+                  <div id="totalScore" class="framescorebox frameScorFontSize" style="width:100%; height:50%; padding:10%;">0</div>
+               </div>`);
+    }
+
+    // 게임의 이전 기록 String 데이터를 가져와 배열 형식으로 변환
+    function getBeforeTriedScoreArray() {
+        // DTO로부터 점수 데이터 획득
+        let scoreDataStr = $("#scoreData").val();
+        // String 데이터 숫자 배열로 변환
+        return scoreDataStr.split(',').map(Number);
+    }
+
+    // 기존 점수 데이터를 프레임에 삽입, 점수 계산
+    function recordBeforeTriedScoreValue(scoreBoard, score) {
+        let frame = scoreBoard.curFrameNum;
+        let phase = scoreBoard.curPhaseNum;
+
+        // ScoreBoard 객체 안 frame 배열에 점수 기록
+        scoreBoard.setTryScore(frame, phase, score);
+        // 점수 값에 따라 화면에 출력할 문자 값 획득
+        let scoreStateValue = scoreBoard.decideScoreState(frame, phase, score);
+        // 화면에 점수 기록
+        scoreBoard.insertTryScoreIntoFrameView(frame, phase, scoreStateValue);
+        // 프레임/시기 전환 결정값 획득
+        transValue = scoreBoard.decideWhichFrameOrPhase(frame, phase);
+        // 프레임 점수 계산
+        scoreBoard.decideCalcFrameScore(frame, transValue, scoreStateValue);
+        // 프레임/시기 전환
+        scoreBoard.transFrameOrPhase(transValue);
+    }
+
+    // 게임 스코어판 인스턴스 생성
+    let boardInstance = new ScoreBoard();
+    // 게임 점수 배열 데이터 획득
+    let scoreData = getBeforeTriedScoreArray();
+
+    // 스코어 프레임 표 생성
+    makeFrameSet();
+    // 배열 요소 값을 차례로 프레임에 삽입, 화면 기록 및 점수 계산
+    for (let score of scoreData) {
+        recordBeforeTriedScoreValue(boardInstance, score);
+    }
+</script>
+</body>
+</html>

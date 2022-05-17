@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<!-- saved from url=(0030)https://www.bowlinggenius.com/ -->
+<html lang="en">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <!-- POST 사용 중 CSRF 공격을 막기 위한 token 발행 -->
+      <meta name="_csrf" th:content="${_csrf.token}">
+      <meta name="_csrf_header" th:content="${_csrf.headerName}">
+
+      <title>Bowling Game</title>
+      <!-- Bootstrap core CSS -->
+      <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" />
+      <link rel="stylesheet" th:href="@{/css/bowlfast.css}" />
+      <!-- JavaScript -->
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+      <script th:src="@{/js/makeButton.js}"></script>
+      <script th:src="@{/js/classScoreBoard.js}"></script>
+      <script th:inline="javascript"></script>
+   </head>
+   <body>
+      <header>
+         <div sec:authorize="isAuthenticated()">
+            <div>안녕하세요, <span sec:authentication="name"></span>님</div>
+            <a href="/account/logout">로그아웃</a>
+        </div>
+      </header>
+      <!-- 이전 게임 데이터 불러오기 -->
+      <input type="hidden" id="originalGameId" th:value="${gameFormDto.gameId}"></input>
+      <input type="hidden" id="scoreData" th:value="${gameFormDto.scoreData}"></input>
+      <div class="container">
+         <!-- Main jumbotron picture of the bowling alley and the pins -->
+         <div class="jumbotron">
+            <h2>Bowling Game</h2>
+         </div>
+         <div class="row">
+            <!-- Pin Score Button -->
+            <div class="col-md-9">
+               <h5>Click Number of Pins Knocked Down</h5>
+               <div id="btn" class="btn-toolbar pinButtons" role="toolbar"></div>
+            </div>
+         </div>
+         <br>
+         <!-- Frame Space -->
+         <div class="row">
+            <div class="col-md-9">
+               <div class="panel panel-default" role="navigation">
+                  <div id="FrameStart" class="panel-body ui-draggable" value="NOTLAST" style="position: relative;">
+                     <div id="FrameStart0misc" class="frameinfo"></div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+      <a href="/">돌아가기</a>
+
+      <script>
+         const pinNum = 10;
+         // 버튼 입력값 받아오는 변수 선언
+         let inputScore;
+         // 프레임/시기 전환 결정값 변수 선언
+         let transValue;
+
+         // 프레임 스코어 표 생성 함수
+         function makeFrameSet() {
+            for (let i = 1; i <= 10; i++)
+            {
+               $("#FrameStart").append(`
+                  <div class="frameboxFrameone" id="frame${i}" style="background: rgb(250, 250, 210);">
+                     <div class="framename frameFontSize">${i}</div>
+                     <div class="outerbox frameScoreFontSize">
+                        ${i == 10
+                              ? `<div id="frame${i}phase1" class="ball1box10"></div>
+                                 <div id="frame${i}phase2" class="ball2box10"></div>
+                                 <div id="frame${i}phase3" class="strikebox10"></div>`
+                              : `<div id="frame${i}phase1" class="ball1box text-center"></div>
+                                 <div id="frame${i}phase2" class="strikebox"></div>`
+                        }
+                     </div>
+                     <div id="frame${i}score"" class="framescorebox frameScoreFontSize"></div>
+                  </div>`);
+            }
+
+            $("#FrameStart").append(`
+               <div class="framebox" id="totalScoreBox" style="background: rgb(250, 250, 210);">
+                  <div class="framename frameFontSize" style="width:100%; height:50%;">Total Score</div>
+                  <div id="totalScore" class="framescorebox frameScorFontSize" style="width:100%; height:50%; padding:10%;">0</div>
+               </div>`);
+         }
+            
+         // 버튼 갯수 조정
+         function resetBtnSet(transEnumValue, score) {
+            if (transEnumValue === transEnum.FRAME || transEnumValue === transEnum.PHS10) {
+               makeBtnSet(pinNum);
+            } else if (transEnumValue == transEnum.ENDGM) {
+               makeBtnSet(-1);
+            } else {
+               makeBtnSet(pinNum - score);
+            }
+         }
+        
+         // 게임 데이터 저장
+         function submitResult(scoreBoard) {
+               var token = $("meta[name='_csrf']").attr("content");
+               var header = $("meta[name='_csrf_header']").attr("content");
+
+               var url = "/game/save";
+               var paramData = {
+                  gameId : $("#originalGameId").val(),
+                  scoreData: scoreBoard.getScoreData().toString(),
+                  curFrameNum: scoreBoard.getCurFrameNum(),
+                  curPhaseNum: scoreBoard.getCurPhaseNum(),
+                  lastCalcFrameNum: scoreBoard.getLastCalcFrameNum(),
+                  totalScore: scoreBoard.getTotalScore()
+               };
+               var param = JSON.stringify(paramData);
+               $.ajax({
+                  url : url,
+                  type : "POST",
+                  contentType : "application/json",
+                  data : param,
+                  beforeSend : function(xhr) {
+                     xhr.setRequestHeader(header, token);
+                  },
+                  dataType : "json",
+                  cache : false,
+                  success : function(result, status) {
+                     // 게임을 완료한 경우 결과 화면으로 리다이렉트
+                     if (transValue === transEnum.ENDGM) {
+                           alert("게임 완료");
+                           location.href='/game/result?gameId=' + paramData.gameId;
+                     }
+                  },
+                  error : function(jqXHR, status, error) {
+                     if (jqXHR.status == '401') {
+                           alert('로그인이 필요합니다.');
+                           location.href='/account/login';
+                     }
+                     else {
+                           alert(jqXHR.responseText);
+                     }
+                  }
+               });
+         }
+
+         // 게임의 이전 기록 String 데이터를 가져와 배열 형식으로 변환
+         function getBeforeTriedScoreArray() {
+               // DTO로부터 점수 데이터 획득
+               let scoreDataStr = $("#scoreData").val();
+               // 게임을 처음 시작하는 경우 빈 배열 반환
+               if (scoreDataStr === "") {
+                  return [];
+               }
+               // String 데이터 숫자 배열로 변환
+               return scoreDataStr.split(',').map(Number);
+         }
+
+         // 기존 점수 데이터를 프레임에 삽입, 점수 계산
+         function recordBeforeTriedScoreValue(scoreBoard, score) {
+               let frame = scoreBoard.curFrameNum;
+               let phase = scoreBoard.curPhaseNum;
+               
+               // ScoreBoard 객체 안 frame 배열에 점수 기록
+               scoreBoard.setTryScore(frame, phase, score);
+               // 점수 값에 따라 화면에 출력할 문자 값 획득 
+               let scoreStateValue = scoreBoard.decideScoreState(frame, phase, score);
+               // 화면에 점수 기록
+               scoreBoard.insertTryScoreIntoFrameView(frame, phase, scoreStateValue);
+               // 프레임/시기 전환 결정값 획득
+               transValue = scoreBoard.decideWhichFrameOrPhase(frame, phase);
+               // 프레임 점수 계산
+               scoreBoard.decideCalcFrameScore(frame, transValue, scoreStateValue);
+               // 프레임/시기 전환
+               scoreBoard.transFrameOrPhase(transValue);
+         }
+
+         // 버튼 클릭 후 정보 처리 프로세스
+         function getScoreValue(event) {
+               let frame = boardInstance.curFrameNum;
+               let phase = boardInstance.curPhaseNum;
+
+               // 버튼 클릭 이벤트가 발생한 element의 값 로드
+               inputScore = parseInt(event.target.innerHTML);
+               // ScoreBoard 객체 안 frame 배열에 점수 기록
+               boardInstance.setTryScore(frame, phase, inputScore);
+               // 점수 값에 따라 화면에 출력할 문자 값 획득 
+               let scoreStateValue = boardInstance.decideScoreState(frame, phase, inputScore);
+               // 화면에 점수 기록
+               boardInstance.insertTryScoreIntoFrameView(frame, phase, scoreStateValue);
+               // 프레임/시기 전환 결정값 획득
+               transValue = boardInstance.decideWhichFrameOrPhase(frame, phase);
+               // 프레임 점수 계산
+               boardInstance.decideCalcFrameScore(frame, transValue, scoreStateValue);
+               // 프레임/시기 전환
+               boardInstance.transFrameOrPhase(transValue);
+
+               // 게임이 완료되면 자동 저장
+               if (transValue === transEnum.ENDGM) {
+                  submitResult(boardInstance);
+               }
+               // 버튼 갯수 조정
+               else {
+                  resetBtnSet(transValue, inputScore);
+               }
+         }
+
+         // 게임 스코어판 인스턴스 생성
+         let boardInstance = new ScoreBoard();
+         // 게임 점수 배열 데이터 획득
+         let scoreData = getBeforeTriedScoreArray();
+
+         // 스코어 프레임 표 생성
+         makeFrameSet();
+         // 게임을 처음 시작하는 경우 버튼 초기 생성
+         if (scoreData.length === 0) {
+               makeBtnSet(pinNum);
+         }
+         // 게임을 이어하는 경우
+         else {
+               // 배열 요소 값을 차례로 프레임에 삽입, 화면 기록 및 점수 계산
+               for (let score of scoreData) {
+                  recordBeforeTriedScoreValue(boardInstance, score);
+               }
+               // 마지막 점수와 전환 상태에 맞춰 버튼 생성
+               resetBtnSet(transValue, scoreData[scoreData.length - 1]);
+         }
+         
+         // 웹 페이지 화면 전환 시 호출, 게임 데이터 자동 저장
+         $(window).on('beforeunload', function () {
+               if (transValue !== transEnum.ENDGM) {
+                  submitResult(boardInstance);
+               }
+         });
+      </script>
+   </body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!-- saved from url=(0030)https://www.bowlinggenius.com/ -->
+<html lang="en">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+      <title>Result</title>
+      <!-- Bootstrap core CSS -->
+      <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" />
+      <link rel="stylesheet" th:href="@{/css/bowlfast.css}" />
+      <!-- JavaScript -->
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+      <script th:src="@{/js/classScoreBoard.js}"></script>
+   </head>
+   <body>
+      <header>
+         <div sec:authorize="isAuthenticated()">
+             <div>안녕하세요, <span sec:authentication="name"></span>님</div>
+             <a href="/account/logout">로그아웃</a>
+         </div>
+      </header>
+      <!-- 이전 게임 데이터 불러오기 -->
+      <input type="hidden" id="originalGameId" th:value="${gameFormDto.gameId}"></input>
+      <input type="hidden" id="scoreData" th:value="${gameFormDto.scoreData}"></input>
+      <div class="container">
+         <!-- Main jumbotron picture of the bowling alley and the pins -->
+         <div class="jumbotron">
+            <h2>Result</h2>
+         </div>
+         <br>
+         <!-- Frame Space -->
+         <div class="row">
+            <div class="col-md-9">
+               <div class="panel panel-default" role="navigation">
+                  <div id="FrameStart" class="panel-body ui-draggable" value="NOTLAST" style="position: relative;">
+                     <div id="FrameStart0misc" class="frameinfo"></div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+      <a href="/game/start">다시 하기</a>
+      <a href="/">돌아가기</a>
+
+      <script>
+         // 프레임 스코어 표 생성 함수
+         function makeFrameSet() {
+            for (let i = 1; i <= 10; i++)
+            {
+               $("#FrameStart").append(`
+                  <div class="frameboxFrameone" id="frame${i}" style="background: rgb(250, 250, 210);">
+                     <div class="framename frameFontSize">${i}</div>
+                     <div class="outerbox frameScoreFontSize">
+                        ${i == 10
+                              ? `<div id="frame${i}phase1" class="ball1box10"></div>
+                                 <div id="frame${i}phase2" class="ball2box10"></div>
+                                 <div id="frame${i}phase3" class="strikebox10"></div>`
+                              : `<div id="frame${i}phase1" class="ball1box text-center"></div>
+                                 <div id="frame${i}phase2" class="strikebox"></div>`
+                        }
+                     </div>
+                     <div id="frame${i}score"" class="framescorebox frameScoreFontSize"></div>
+                  </div>`);
+            }
+
+            $("#FrameStart").append(`
+               <div class="framebox" id="totalScoreBox" style="background: rgb(250, 250, 210);">
+                  <div class="framename frameFontSize" style="width:100%; height:50%;">Total Score</div>
+                  <div id="totalScore" class="framescorebox frameScorFontSize" style="width:100%; height:50%; padding:10%;">0</div>
+               </div>`);
+         }
+            
+                 // 게임의 이전 기록 String 데이터를 가져와 배열 형식으로 변환
+        function getBeforeTriedScoreArray() {
+            // DTO로부터 점수 데이터 획득
+            let scoreDataStr = $("#scoreData").val();
+            // String 데이터 숫자 배열로 변환
+            return scoreDataStr.split(',').map(Number);
+        }
+
+        // 기존 점수 데이터를 프레임에 삽입, 점수 계산
+        function recordBeforeTriedScoreValue(scoreBoard, score) {
+            let frame = scoreBoard.curFrameNum;
+            let phase = scoreBoard.curPhaseNum;
+            
+            // ScoreBoard 객체 안 frame 배열에 점수 기록
+            scoreBoard.setTryScore(frame, phase, score);
+            // 점수 값에 따라 화면에 출력할 문자 값 획득 
+            let scoreStateValue = scoreBoard.decideScoreState(frame, phase, score);
+            // 화면에 점수 기록
+            scoreBoard.insertTryScoreIntoFrameView(frame, phase, scoreStateValue);
+            // 프레임/시기 전환 결정값 획득
+            transValue = scoreBoard.decideWhichFrameOrPhase(frame, phase);
+            // 프레임 점수 계산
+            scoreBoard.decideCalcFrameScore(frame, transValue, scoreStateValue);
+            // 프레임/시기 전환
+            scoreBoard.transFrameOrPhase(transValue);
+        }
+
+        // 게임 스코어판 인스턴스 생성
+        let boardInstance = new ScoreBoard();
+        // 게임 점수 배열 데이터 획득
+        let scoreData = getBeforeTriedScoreArray();
+
+        // 스코어 프레임 표 생성
+        makeFrameSet();
+        // 배열 요소 값을 차례로 프레임에 삽입, 화면 기록 및 점수 계산
+        for (let score of scoreData) {
+            recordBeforeTriedScoreValue(boardInstance, score);
+        }
+      </script>
+   </body>
+</html>
